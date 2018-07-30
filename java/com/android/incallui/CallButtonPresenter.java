@@ -48,7 +48,6 @@ import com.android.incallui.incall.protocol.InCallButtonIds;
 import com.android.incallui.incall.protocol.InCallButtonUi;
 import com.android.incallui.incall.protocol.InCallButtonUiDelegate;
 import com.android.incallui.videotech.utils.VideoUtils;
-import android.util.Log;
 
 /** Logic for call buttons. */
 public class CallButtonPresenter
@@ -110,6 +109,11 @@ public class CallButtonPresenter
 
     CallRecorder recorder = CallRecorder.getInstance();
     recorder.addRecordingProgressListener(mRecordingProgressListener);
+    if(recorder.isRecording()){
+      mInCallButtonUi.setCallRecordingState(true);
+    } else {
+      mInCallButtonUi.setCallRecordingState(false);
+    }
 
     // Update the buttons state immediately for the current call
     onStateChange(InCallState.NO_CALLS, inCallPresenter.getInCallState(), CallList.getInstance());
@@ -136,8 +140,6 @@ public class CallButtonPresenter
   @Override
   public void onStateChange(InCallState oldState, InCallState newState, CallList callList) {
 
-    //Log.d("onStateChange", oldState.toString()+"/"+newState.toString());
-
     CallRecorder recorder = CallRecorder.getInstance();
     boolean isEnabled = PreferenceManager.getDefaultSharedPreferences(mContext).getBoolean(mContext.getString(R.string.auto_call_recording_key), false);
 
@@ -145,9 +147,6 @@ public class CallButtonPresenter
       mCall = callList.getOutgoingCall();
     } else if (newState == InCallState.INCALL) {
       mCall = callList.getActiveOrBackgroundCall();
-//     final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-//     boolean warningPresented = prefs.getBoolean(KEY_RECORDING_WARNING_PRESENTED, false);
-        Log.d("onStateChange", oldState.toString()+"/"+newState.toString()+"="+mIsRecording);
 	    if (!mIsRecording && isEnabled && mCall != null) {
 	        mIsRecording = true;
 	        new Handler().postDelayed(new Runnable() {
@@ -172,12 +171,8 @@ public class CallButtonPresenter
       }
       mCall = callList.getIncomingCall();
     } else {
-        if (isEnabled) {
-          Log.d("onStateChange", oldState.toString()+"/"+newState.toString()+"-"+(mCall!=null)+"-"+recorder.isRecording());
-            if (recorder.isRecording()) {
-                Log.d("onStateChange", "finishRecording");
-                recorder.finishRecording();
-            }
+        if (isEnabled && recorder.isRecording()) {
+          recorder.finishRecording();
 	    }
 	    mCall = null;
     }    
@@ -328,7 +323,6 @@ public class CallButtonPresenter
 
   @Override
   public void callRecordClicked(boolean checked) {
-    Log.d("onStateChange", "callRecordClicked "+checked);
     CallRecorder recorder = CallRecorder.getInstance();
     if (checked) {
       if(!recorder.isRecording()) {
@@ -336,14 +330,12 @@ public class CallButtonPresenter
       }
     } else {
       if (recorder.isRecording()) {
-          Log.d("onStateChange", "finishRecording");
         recorder.finishRecording();
       }
     }
   }
 
   private void startCallRecordingOrAskForPermission() {
-      Log.d("onStateChange", "startRecording");
     if (hasAllPermissions(CallRecorder.REQUIRED_PERMISSIONS)) {
       CallRecorder recorder = CallRecorder.getInstance();
       recorder.startRecording(mCall.getNumber(), mCall.getCreationTimeMillis());
